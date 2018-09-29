@@ -1,126 +1,101 @@
 package com.task.storage.service;
 
-import com.task.storage.Exception.NotFoundException;
-import com.task.storage.Exception.ThereIsNoSuchContactIdException;
-import com.task.storage.Exception.ThereIsNoSuchProductNameException;
 import com.task.storage.domain.Application;
 import com.task.storage.domain.Client;
 import com.task.storage.dto.ApplicationDto;
+import com.task.storage.exception.NotFoundException;
+import com.task.storage.exception.ThereIsNoSuchContactIdException;
+import com.task.storage.exception.ThereIsNoSuchProductNameException;
+import com.task.storage.mapper.ApplicationMapper;
 import com.task.storage.repos.ApplicationRepo;
 import com.task.storage.repos.ClientRepo;
 import lombok.extern.slf4j.Slf4j;
+import org.mapstruct.factory.Mappers;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+
+interface ApplicationServiceInterface {
+
+    List<ApplicationDto> getListAppByClientId(Long id);
+
+    ApplicationDto createApplication(ApplicationDto applicationDto);
+
+    ApplicationDto updateApplication(ApplicationDto applicationDto);
+
+    ApplicationDto getLastApplication();
+}
 
 @Slf4j
 @org.springframework.stereotype.Service
-public class ApplicationService implements Service {
+public class ApplicationService implements ApplicationServiceInterface {
 
     @Autowired
     ApplicationRepo applicationRepo;
+
     @Autowired
     ClientRepo clientRepo;
 
-    @Override
-    public List<ApplicationDto> getListAppByContactId(Client client) {
-        List<ApplicationDto> listAppDto = new ArrayList<ApplicationDto>();
-        ApplicationDto appDto;
-// TO DO convert method
-        for ( Application app : client.getApplications()) {
-            appDto = new ApplicationDto();
-            appDto.setDate(app.getDtСreated().toString());
-            appDto.setId(app.getApplicationId());
-            appDto.setContact_id(app.getContact().getContactId());
-            appDto.setProductName(app.getProductName());
-            listAppDto.add(appDto);
-        }
-        return listAppDto;
+    @Autowired
+    private final ApplicationMapper mapper;
+
+    public ApplicationService() {
+        mapper = Mappers.getMapper(ApplicationMapper.class);
     }
 
     @Override
-    public ApplicationDto createApp(ApplicationDto applicationDto) {
-        Application application = new Application();
+    public List<ApplicationDto> getListAppByClientId(Long id) {
+        Client client = clientRepo.getOne(id);
+        return mapper.fromListApplication(client.getApplications());
+    }
 
-        if(applicationDto.getProductName() == null)
-                throw new ThereIsNoSuchProductNameException();
+    @Override
+    public ApplicationDto createApplication(ApplicationDto applicationDto) {
+        Application application = mapper.toApplication(applicationDto);
 
-        application.setProductName(applicationDto.getProductName());
+        if (applicationDto.getProductName() == null) {
+            throw new ThereIsNoSuchProductNameException();
+        }
 
-        if(applicationDto.getContact_id() == null)
+        if (applicationDto.getClientId() == null) {
             throw new ThereIsNoSuchContactIdException();
+        }
 
-        Client client = clientRepo.getOne(applicationDto.getContact_id());
-
-        application.setContact(client);
+        application.setClient(clientRepo.getOne(applicationDto.getClientId()));
 
         application = applicationRepo.save(application);
-        applicationDto.setId(application.getApplicationId());
-        applicationDto.setDate(application.getDtСreated().toString());
-        return applicationDto;
+        return mapper.fromApplication(application);
     }
 
     @Override
-    public ApplicationDto updateApp(Long id, Long id_appli, ApplicationDto applicationDto) {
-        Application application = applicationRepo.getOne(id_appli);
-        Client client = clientRepo.findByContactId(id);
+    public ApplicationDto updateApplication(ApplicationDto applicationDto) {
+        Application application = mapper.toApplication(applicationDto);
 
-        if(applicationDto.getProductName() == null)
+        if (applicationDto.getProductName() == null) {
             throw new ThereIsNoSuchProductNameException();
-
-        application.setProductName(applicationDto.getProductName());
-        application.setDtСreated(LocalDateTime.now());
-
-        applicationRepo.save(application);
-
-        return applicationDto;
-
-    }
-
-    @Override
-    public ApplicationDto getLastApp() {
-        class ApplicationComparator implements Comparator<Application> {
-            @Override
-            public int compare(Application application, Application t1) {
-                return application.getDtСreated().toString()
-                        .compareTo(t1.getDtСreated().toString());
-            }
         }
 
-        ApplicationComparator comparator = new ApplicationComparator();
+        return mapper.fromApplication(applicationRepo.save(application));
+    }
+
+    @Override
+    public ApplicationDto getLastApplication() {
         Application app = applicationRepo
-                .findAll()
-                .stream()
-                .max(comparator).get();
+            .findAll()
+            .stream()
+            .max((Application app1, Application app2) ->
+                app1.getCreatedAt().toString()
+                .compareTo(app2.getCreatedAt().toString())).get();
 
         if (app == null)
             throw new NotFoundException();
 
-        ApplicationDto appDto = new ApplicationDto();
-        appDto.setDate(app.getDtСreated().toString());
-        appDto.setId(app.getApplicationId());
-        appDto.setContact_id(app.getContact().getContactId());
-        appDto.setProductName(app.getProductName());
-
-        return appDto;
+        return mapper.fromApplication(app);
     }
 
-
-    public List<Client> viewListContact() {
-        return clientRepo.findAll();
+    public void deleteApplication(Long id) {
+        applicationRepo.deleteById(id);
     }
-
-
-    public void deleteApp( Application application) {
-        applicationRepo.delete(application);
-    }
-
-
-    public Client createContact(Client client) {
-        return clientRepo.save(client);
-    }
-
 }

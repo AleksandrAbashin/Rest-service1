@@ -1,4 +1,4 @@
-package com.task.storage.Exception;
+package com.task.storage.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

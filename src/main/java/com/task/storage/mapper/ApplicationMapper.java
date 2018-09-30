@@ -11,7 +11,7 @@ import java.util.List;
 public interface ApplicationMapper {
 
     @Mapping(source = "clientId", target = "client.id")
-    Application toApplication(ApplicationDto clientDto);
+    Application toApplication(ApplicationDto applicationDto);
 
     @Mapping(source = "client.id", target = "clientId")
     ApplicationDto fromApplication(Application application);
